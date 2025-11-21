@@ -1,0 +1,31 @@
+{
+  "tests": [
+    {
+      "name": "Get all content",
+      "method": "GET",
+      "path": "/",
+      "expectedStatus": 200,
+      "expectedBody": {
+        "services": "array",
+        "regions": "array",
+        "news": "array",
+        "schedule": "array"
+      },
+      "bodyMatcher": "partial"
+    },
+    {
+      "name": "Get services",
+      "method": "GET",
+      "path": "/?entity=services",
+      "expectedStatus": 200,
+      "bodyMatcher": "partial"
+    },
+    {
+      "name": "Get regions",
+      "method": "GET",
+      "path": "/?entity=regions",
+      "expectedStatus": 200,
+      "bodyMatcher": "partial"
+    }
+  ]
+}

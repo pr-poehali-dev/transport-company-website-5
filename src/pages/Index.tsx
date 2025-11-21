@@ -5,8 +5,44 @@ import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import Icon from '@/components/ui/icon';
 import { toast } from 'sonner';
+
+const API_URL = 'https://functions.poehali.dev/719664df-8de7-43cc-ba04-516b5c8800fe';
+
+interface Service {
+  id?: number;
+  icon: string;
+  title: string;
+  description: string;
+  color: string;
+}
+
+interface Region {
+  id?: number;
+  name: string;
+  passengers: string;
+  routes: number;
+}
+
+interface News {
+  id?: number;
+  date: string;
+  title: string;
+  category: string;
+  content?: string;
+}
+
+interface Schedule {
+  id?: number;
+  route: string;
+  departure: string;
+  arrival: string;
+  transport: string;
+}
 
 const Index = () => {
   const [currentTime, setCurrentTime] = useState(new Date());
@@ -15,12 +51,38 @@ const Index = () => {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [loginData, setLoginData] = useState({ username: '', password: '' });
 
+  const [services, setServices] = useState<Service[]>([]);
+  const [regions, setRegions] = useState<Region[]>([]);
+  const [news, setNews] = useState<News[]>([]);
+  const [schedule, setSchedule] = useState<Schedule[]>([]);
+
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [editEntity, setEditEntity] = useState<string>('');
+  const [editItem, setEditItem] = useState<any>(null);
+
   useEffect(() => {
     const timer = setInterval(() => {
       setCurrentTime(new Date());
     }, 1000);
     return () => clearInterval(timer);
   }, []);
+
+  useEffect(() => {
+    fetchAllData();
+  }, []);
+
+  const fetchAllData = async () => {
+    try {
+      const response = await fetch(API_URL);
+      const data = await response.json();
+      setServices(data.services || []);
+      setRegions(data.regions || []);
+      setNews(data.news || []);
+      setSchedule(data.schedule || []);
+    } catch (error) {
+      console.error('Error fetching data:', error);
+    }
+  };
 
   const handleLogin = () => {
     if (loginData.username === 'BLINOV' && loginData.password === '31082010В') {
@@ -48,32 +110,47 @@ const Index = () => {
     return date.toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric' });
   };
 
-  const services = [
-    { icon: 'Bus', title: 'Автобусы', description: 'Регулярные междугородние маршруты', color: 'bg-blue-500' },
-    { icon: 'Car', title: 'Микроавтобусы', description: 'Комфортные пригородные перевозки', color: 'bg-orange-500' },
-    { icon: 'Train', title: 'Электропоезда', description: 'Быстрые электрички по области', color: 'bg-purple-500' },
-    { icon: 'Train', title: 'Поезда дальнего следования', description: 'Межрегиональные маршруты', color: 'bg-green-500' }
-  ];
+  const openEditDialog = (entity: string, item: any = null) => {
+    setEditEntity(entity);
+    setEditItem(item || {});
+    setEditDialogOpen(true);
+  };
 
-  const regions = [
-    { name: 'Нижегородская область', passengers: '2.5 млн/год', routes: 120 },
-    { name: 'Владимирская область', passengers: '1.8 млн/год', routes: 85 },
-    { name: 'Кировская область', passengers: '1.2 млн/год', routes: 67 },
-    { name: 'Республика Удмуртия', passengers: '1.6 млн/год', routes: 92 }
-  ];
+  const handleSave = async () => {
+    try {
+      const method = editItem.id ? 'PUT' : 'POST';
+      const response = await fetch(`${API_URL}?entity=${editEntity}`, {
+        method,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(editItem)
+      });
 
-  const news = [
-    { date: '15 ноября 2025', title: 'Запуск нового маршрута Нижний Новгород - Владимир', category: 'Маршруты' },
-    { date: '10 ноября 2025', title: 'Обновление парка автобусов: 50 новых машин', category: 'Техника' },
-    { date: '5 ноября 2025', title: 'Скидки для студентов на междугородние перевозки', category: 'Акции' }
-  ];
+      if (response.ok) {
+        toast.success(editItem.id ? 'Обновлено!' : 'Добавлено!');
+        setEditDialogOpen(false);
+        fetchAllData();
+      }
+    } catch (error) {
+      toast.error('Ошибка сохранения');
+    }
+  };
 
-  const schedule = [
-    { route: 'Нижний Новгород - Владимир', departure: '08:00', arrival: '11:30', transport: 'Автобус' },
-    { route: 'Киров - Ижевск', departure: '09:15', arrival: '12:45', transport: 'Микроавтобус' },
-    { route: 'Нижний Новгород - Киров', departure: '10:30', arrival: '16:00', transport: 'Электропоезд' },
-    { route: 'Владимир - Москва', departure: '07:00', arrival: '12:30', transport: 'Поезд' }
-  ];
+  const handleDelete = async (entity: string, id: number) => {
+    try {
+      const response = await fetch(`${API_URL}?entity=${entity}`, {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id })
+      });
+
+      if (response.ok) {
+        toast.success('Удалено!');
+        fetchAllData();
+      }
+    } catch (error) {
+      toast.error('Ошибка удаления');
+    }
+  };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-purple-50">
@@ -158,9 +235,9 @@ const Index = () => {
             <div className="grid md:grid-cols-4 gap-6">
               {[
                 { icon: 'Users', value: '7+ млн', label: 'Пассажиров в год', color: 'from-blue-500 to-blue-600' },
-                { icon: 'MapPin', value: '364', label: 'Маршрута', color: 'from-purple-500 to-purple-600' },
+                { icon: 'MapPin', value: `${regions.reduce((sum, r) => sum + r.routes, 0)}`, label: 'Маршрутов', color: 'from-purple-500 to-purple-600' },
                 { icon: 'Bus', value: '450+', label: 'Единиц транспорта', color: 'from-orange-500 to-orange-600' },
-                { icon: 'Award', value: '4', label: 'Региона', color: 'from-green-500 to-green-600' }
+                { icon: 'Award', value: regions.length.toString(), label: 'Региона', color: 'from-green-500 to-green-600' }
               ].map((stat, i) => (
                 <Card key={i} className="border-0 shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-1 animate-fade-in" style={{ animationDelay: `${i * 100}ms` }}>
                   <CardContent className="p-6">
@@ -221,7 +298,7 @@ const Index = () => {
 
             <div className="grid md:grid-cols-2 gap-6">
               {services.map((service, i) => (
-                <Card key={i} className="border-0 shadow-lg hover:shadow-xl transition-all duration-300 group hover:-translate-y-1" style={{ animationDelay: `${i * 100}ms` }}>
+                <Card key={i} className="border-0 shadow-lg hover:shadow-xl transition-all duration-300 group hover:-translate-y-1">
                   <CardHeader>
                     <div className={`w-16 h-16 ${service.color} rounded-2xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform`}>
                       <Icon name={service.icon} className="text-white" size={32} />
@@ -429,56 +506,150 @@ const Index = () => {
           <div className="space-y-8 animate-fade-in">
             <div className="flex items-center justify-between">
               <div>
-                <h2 className="text-4xl font-bold mb-2 text-slate-900">Личный кабинет</h2>
+                <h2 className="text-4xl font-bold mb-2 text-slate-900">Панель управления</h2>
                 <p className="text-slate-600">Генеральный директор</p>
               </div>
               <Badge className="bg-green-100 text-green-700 hover:bg-green-100">Активная сессия</Badge>
             </div>
 
-            <div className="grid md:grid-cols-3 gap-6">
-              {[
-                { title: 'Общая выручка', value: '124.5 млн ₽', change: '+12.5%', icon: 'DollarSign', color: 'from-green-500 to-green-600' },
-                { title: 'Активных маршрутов', value: '364', change: '+8', icon: 'Route', color: 'from-blue-500 to-blue-600' },
-                { title: 'Техническое состояние', value: '98.5%', change: '+2.1%', icon: 'Wrench', color: 'from-purple-500 to-purple-600' }
-              ].map((metric, i) => (
-                <Card key={i} className="border-0 shadow-lg">
-                  <CardContent className="p-6">
-                    <div className={`w-12 h-12 bg-gradient-to-br ${metric.color} rounded-xl flex items-center justify-center mb-4`}>
-                      <Icon name={metric.icon} className="text-white" size={24} />
-                    </div>
-                    <div className="text-sm text-slate-600 mb-1">{metric.title}</div>
-                    <div className="text-3xl font-bold text-slate-900 mb-2">{metric.value}</div>
-                    <Badge variant="outline" className="text-green-600 border-green-200">{metric.change}</Badge>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
+            <Tabs defaultValue="services" className="w-full">
+              <TabsList className="grid w-full grid-cols-4">
+                <TabsTrigger value="services">Услуги</TabsTrigger>
+                <TabsTrigger value="regions">Регионы</TabsTrigger>
+                <TabsTrigger value="news">Новости</TabsTrigger>
+                <TabsTrigger value="schedule">Расписание</TabsTrigger>
+              </TabsList>
 
-            <Card className="border-0 shadow-lg">
-              <CardHeader>
-                <CardTitle>Быстрые действия</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="grid md:grid-cols-4 gap-4">
-                  <Button variant="outline" className="h-24 flex flex-col gap-2">
-                    <Icon name="FileText" size={24} />
-                    <span className="text-sm">Отчёты</span>
-                  </Button>
-                  <Button variant="outline" className="h-24 flex flex-col gap-2">
-                    <Icon name="Users" size={24} />
-                    <span className="text-sm">Сотрудники</span>
-                  </Button>
-                  <Button variant="outline" className="h-24 flex flex-col gap-2">
-                    <Icon name="Settings" size={24} />
-                    <span className="text-sm">Настройки</span>
-                  </Button>
-                  <Button variant="outline" className="h-24 flex flex-col gap-2">
-                    <Icon name="BarChart" size={24} />
-                    <span className="text-sm">Аналитика</span>
+              <TabsContent value="services" className="space-y-4">
+                <div className="flex justify-between items-center">
+                  <h3 className="text-2xl font-bold">Управление услугами</h3>
+                  <Button onClick={() => openEditDialog('services')} className="gap-2">
+                    <Icon name="Plus" size={16} />
+                    Добавить услугу
                   </Button>
                 </div>
-              </CardContent>
-            </Card>
+                <div className="grid gap-4">
+                  {services.map((service) => (
+                    <Card key={service.id}>
+                      <CardContent className="p-4 flex items-center justify-between">
+                        <div className="flex items-center gap-4">
+                          <div className={`w-12 h-12 ${service.color} rounded-xl flex items-center justify-center`}>
+                            <Icon name={service.icon} className="text-white" size={24} />
+                          </div>
+                          <div>
+                            <h4 className="font-semibold">{service.title}</h4>
+                            <p className="text-sm text-slate-600">{service.description}</p>
+                          </div>
+                        </div>
+                        <div className="flex gap-2">
+                          <Button variant="outline" size="sm" onClick={() => openEditDialog('services', service)}>
+                            <Icon name="Pencil" size={16} />
+                          </Button>
+                          <Button variant="outline" size="sm" onClick={() => service.id && handleDelete('services', service.id)}>
+                            <Icon name="Trash2" size={16} />
+                          </Button>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              </TabsContent>
+
+              <TabsContent value="regions" className="space-y-4">
+                <div className="flex justify-between items-center">
+                  <h3 className="text-2xl font-bold">Управление регионами</h3>
+                  <Button onClick={() => openEditDialog('regions')} className="gap-2">
+                    <Icon name="Plus" size={16} />
+                    Добавить регион
+                  </Button>
+                </div>
+                <div className="grid gap-4">
+                  {regions.map((region) => (
+                    <Card key={region.id}>
+                      <CardContent className="p-4 flex items-center justify-between">
+                        <div>
+                          <h4 className="font-semibold">{region.name}</h4>
+                          <p className="text-sm text-slate-600">Пассажиропоток: {region.passengers} | Маршрутов: {region.routes}</p>
+                        </div>
+                        <div className="flex gap-2">
+                          <Button variant="outline" size="sm" onClick={() => openEditDialog('regions', region)}>
+                            <Icon name="Pencil" size={16} />
+                          </Button>
+                          <Button variant="outline" size="sm" onClick={() => region.id && handleDelete('regions', region.id)}>
+                            <Icon name="Trash2" size={16} />
+                          </Button>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              </TabsContent>
+
+              <TabsContent value="news" className="space-y-4">
+                <div className="flex justify-between items-center">
+                  <h3 className="text-2xl font-bold">Управление новостями</h3>
+                  <Button onClick={() => openEditDialog('news')} className="gap-2">
+                    <Icon name="Plus" size={16} />
+                    Добавить новость
+                  </Button>
+                </div>
+                <div className="grid gap-4">
+                  {news.map((item) => (
+                    <Card key={item.id}>
+                      <CardContent className="p-4 flex items-center justify-between">
+                        <div>
+                          <div className="flex items-center gap-2 mb-1">
+                            <Badge variant="outline">{item.category}</Badge>
+                            <span className="text-sm text-slate-500">{item.date}</span>
+                          </div>
+                          <h4 className="font-semibold">{item.title}</h4>
+                        </div>
+                        <div className="flex gap-2">
+                          <Button variant="outline" size="sm" onClick={() => openEditDialog('news', item)}>
+                            <Icon name="Pencil" size={16} />
+                          </Button>
+                          <Button variant="outline" size="sm" onClick={() => item.id && handleDelete('news', item.id)}>
+                            <Icon name="Trash2" size={16} />
+                          </Button>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              </TabsContent>
+
+              <TabsContent value="schedule" className="space-y-4">
+                <div className="flex justify-between items-center">
+                  <h3 className="text-2xl font-bold">Управление расписанием</h3>
+                  <Button onClick={() => openEditDialog('schedule')} className="gap-2">
+                    <Icon name="Plus" size={16} />
+                    Добавить маршрут
+                  </Button>
+                </div>
+                <div className="grid gap-4">
+                  {schedule.map((item) => (
+                    <Card key={item.id}>
+                      <CardContent className="p-4 flex items-center justify-between">
+                        <div>
+                          <h4 className="font-semibold">{item.route}</h4>
+                          <p className="text-sm text-slate-600">
+                            {item.departure} → {item.arrival} | {item.transport}
+                          </p>
+                        </div>
+                        <div className="flex gap-2">
+                          <Button variant="outline" size="sm" onClick={() => openEditDialog('schedule', item)}>
+                            <Icon name="Pencil" size={16} />
+                          </Button>
+                          <Button variant="outline" size="sm" onClick={() => item.id && handleDelete('schedule', item.id)}>
+                            <Icon name="Trash2" size={16} />
+                          </Button>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              </TabsContent>
+            </Tabs>
           </div>
         )}
       </main>
@@ -493,10 +664,7 @@ const Index = () => {
             <div>
               <h4 className="font-semibold mb-4">Услуги</h4>
               <ul className="space-y-2 text-sm text-slate-400">
-                <li>Автобусы</li>
-                <li>Микроавтобусы</li>
-                <li>Электропоезда</li>
-                <li>Поезда дальнего следования</li>
+                {services.slice(0, 4).map((s, i) => <li key={i}>{s.title}</li>)}
               </ul>
             </div>
             <div>
@@ -551,6 +719,111 @@ const Index = () => {
             </div>
             <Button onClick={handleLogin} className="w-full">
               Войти
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>{editItem?.id ? 'Редактировать' : 'Добавить'}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            {editEntity === 'services' && (
+              <>
+                <div>
+                  <Label>Название</Label>
+                  <Input value={editItem.title || ''} onChange={(e) => setEditItem({...editItem, title: e.target.value})} />
+                </div>
+                <div>
+                  <Label>Описание</Label>
+                  <Textarea value={editItem.description || ''} onChange={(e) => setEditItem({...editItem, description: e.target.value})} />
+                </div>
+                <div>
+                  <Label>Иконка</Label>
+                  <Input value={editItem.icon || ''} onChange={(e) => setEditItem({...editItem, icon: e.target.value})} placeholder="Bus, Train, Car" />
+                </div>
+                <div>
+                  <Label>Цвет</Label>
+                  <Select value={editItem.color || ''} onValueChange={(v) => setEditItem({...editItem, color: v})}>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="bg-blue-500">Синий</SelectItem>
+                      <SelectItem value="bg-orange-500">Оранжевый</SelectItem>
+                      <SelectItem value="bg-purple-500">Фиолетовый</SelectItem>
+                      <SelectItem value="bg-green-500">Зелёный</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </>
+            )}
+            
+            {editEntity === 'regions' && (
+              <>
+                <div>
+                  <Label>Название региона</Label>
+                  <Input value={editItem.name || ''} onChange={(e) => setEditItem({...editItem, name: e.target.value})} />
+                </div>
+                <div>
+                  <Label>Пассажиропоток</Label>
+                  <Input value={editItem.passengers || ''} onChange={(e) => setEditItem({...editItem, passengers: e.target.value})} placeholder="2.5 млн/год" />
+                </div>
+                <div>
+                  <Label>Количество маршрутов</Label>
+                  <Input type="number" value={editItem.routes || ''} onChange={(e) => setEditItem({...editItem, routes: parseInt(e.target.value)})} />
+                </div>
+              </>
+            )}
+            
+            {editEntity === 'news' && (
+              <>
+                <div>
+                  <Label>Дата</Label>
+                  <Input value={editItem.date || ''} onChange={(e) => setEditItem({...editItem, date: e.target.value})} placeholder="15 ноября 2025" />
+                </div>
+                <div>
+                  <Label>Заголовок</Label>
+                  <Input value={editItem.title || ''} onChange={(e) => setEditItem({...editItem, title: e.target.value})} />
+                </div>
+                <div>
+                  <Label>Категория</Label>
+                  <Input value={editItem.category || ''} onChange={(e) => setEditItem({...editItem, category: e.target.value})} placeholder="Маршруты, Техника, Акции" />
+                </div>
+                <div>
+                  <Label>Содержание</Label>
+                  <Textarea value={editItem.content || ''} onChange={(e) => setEditItem({...editItem, content: e.target.value})} rows={5} />
+                </div>
+              </>
+            )}
+            
+            {editEntity === 'schedule' && (
+              <>
+                <div>
+                  <Label>Маршрут</Label>
+                  <Input value={editItem.route || ''} onChange={(e) => setEditItem({...editItem, route: e.target.value})} placeholder="Нижний Новгород - Владимир" />
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label>Отправление</Label>
+                    <Input value={editItem.departure || ''} onChange={(e) => setEditItem({...editItem, departure: e.target.value})} placeholder="08:00" />
+                  </div>
+                  <div>
+                    <Label>Прибытие</Label>
+                    <Input value={editItem.arrival || ''} onChange={(e) => setEditItem({...editItem, arrival: e.target.value})} placeholder="11:30" />
+                  </div>
+                </div>
+                <div>
+                  <Label>Транспорт</Label>
+                  <Input value={editItem.transport || ''} onChange={(e) => setEditItem({...editItem, transport: e.target.value})} placeholder="Автобус" />
+                </div>
+              </>
+            )}
+            
+            <Button onClick={handleSave} className="w-full">
+              Сохранить
             </Button>
           </div>
         </DialogContent>
